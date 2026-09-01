@@ -5,7 +5,7 @@ export type SoundProfile = 'typewriter' | 'mechanical';
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private soundEnabled: boolean = true;
-  private profile: SoundProfile = 'typewriter';
+  private profile: SoundProfile = 'mechanical';
   private volume: number = 0.8;
 
   constructor() {
