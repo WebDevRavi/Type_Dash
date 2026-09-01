@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="12" fill="#111111"/>
+  <!-- Keycap Isometric Outer -->
+  <path d="M22 14 L50 18 L46 48 L18 44 Z" fill="#222222" stroke="#faf9f6" stroke-width="2"/>
+  <!-- Keycap Top -->
+  <path d="M26 18 L46 21 L42 42 L22 39 Z" fill="#faf9f6"/>
+  <!-- Letter T -->
+  <text x="34" y="34" font-family="'Courier Prime', monospace" font-size="18" font-weight="bold" fill="#111111" text-anchor="middle" dominant-baseline="middle">T</text>
+  <!-- Speed lines -->
+  <line x1="8" y1="24" x2="18" y2="24" stroke="#faf9f6" stroke-width="2" stroke-linecap="round"/>
+  <line x1="12" y1="32" x2="16" y2="32" stroke="#faf9f6" stroke-width="2" stroke-linecap="round"/>
+  <line x1="6" y1="40" x2="14" y2="40" stroke="#faf9f6" stroke-width="2" stroke-linecap="round"/>
+</svg>

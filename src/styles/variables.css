@@ -1,0 +1,37 @@
+:root {
+  --bg-primary: #faf9f6;
+  --bg-secondary: #f3f1ec;
+  --ink-primary: #111111;
+  --ink-secondary: #555555;
+  --ink-muted: #888888;
+  --border-dark: #111111;
+  --border-light: #dcd8d0;
+  --border-dotted: #999999;
+  --error-ink: #b91c1c;
+  --error-bg: #fee2e2;
+  --success-ink: #15803d;
+  --upcoming-ink: #0284c7;
+
+  --font-typewriter: 'Special Elite', 'Courier Prime', Courier, monospace;
+  --font-mono: 'Space Mono', 'JetBrains Mono', 'Courier Prime', monospace;
+  --font-display: 'Courier Prime', 'Special Elite', monospace;
+
+  --radius-btn: 6px;
+  --radius-sm: 4px;
+  --max-width: 900px;
+}
+
+[data-theme='dark'] {
+  --bg-primary: #141414;
+  --bg-secondary: #1e1e1e;
+  --ink-primary: #f5f5f2;
+  --ink-secondary: #a8a8a2;
+  --ink-muted: #6e6e6a;
+  --border-dark: #f5f5f2;
+  --border-light: #333330;
+  --border-dotted: #555550;
+  --error-ink: #f87171;
+  --error-bg: #450a0a;
+  --success-ink: #4ade80;
+  --upcoming-ink: #38bdf8;
+}
