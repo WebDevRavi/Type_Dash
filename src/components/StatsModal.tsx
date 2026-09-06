@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserStatsStorage } from '../game/storage';
+import { loadDailyChallengeState } from '../game/dailyChallenge';
 
 interface StatsModalProps {
   stats: UserStatsStorage;
@@ -7,11 +8,19 @@ interface StatsModalProps {
 }
 
 export const StatsModal: React.FC<StatsModalProps> = ({ stats, onClose }) => {
+  const dailyState = loadDailyChallengeState();
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onClose} role="presentation">
+      <div
+        className="modal-content"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="stats-title"
+      >
         <div className="modal-header">
-          <h2 className="modal-title">STATISTICS</h2>
+          <h2 id="stats-title" className="modal-title">STATISTICS</h2>
           <button
             type="button"
             className="modal-close-btn"
@@ -28,12 +37,20 @@ export const StatsModal: React.FC<StatsModalProps> = ({ stats, onClose }) => {
             <span className="result-card-value">{stats.bestWpm}</span>
           </div>
           <div className="result-card">
-            <span className="result-card-label">BEST SCORE</span>
-            <span className="result-card-value">{stats.bestScore}</span>
+            <span className="result-card-label">60S SPRINT</span>
+            <span className="result-card-value">{stats.modeBests?.sprint || stats.bestWpm}</span>
           </div>
           <div className="result-card">
-            <span className="result-card-label">BEST ACC</span>
-            <span className="result-card-value">{stats.bestAccuracy}%</span>
+            <span className="result-card-label">30S BLITZ</span>
+            <span className="result-card-value">{stats.modeBests?.blitz || 0}</span>
+          </div>
+          <div className="result-card">
+            <span className="result-card-label">STREAK MODE</span>
+            <span className="result-card-value">{stats.modeBests?.streak || 0}</span>
+          </div>
+          <div className="result-card">
+            <span className="result-card-label">DAILY STREAK</span>
+            <span className="result-card-value">{dailyState.streak} {dailyState.streak === 1 ? 'DAY' : 'DAYS'}</span>
           </div>
           <div className="result-card">
             <span className="result-card-label">GAMES</span>
@@ -54,18 +71,18 @@ export const StatsModal: React.FC<StatsModalProps> = ({ stats, onClose }) => {
               <thead>
                 <tr>
                   <th>TIME</th>
+                  <th>MODE</th>
                   <th>WPM</th>
-                  <th>ACCURACY</th>
-                  <th>WORDS</th>
+                  <th>ACC</th>
                 </tr>
               </thead>
               <tbody>
                 {stats.history.slice(0, 8).map((h, i) => (
                   <tr key={i}>
                     <td>{new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td style={{ textTransform: 'uppercase', fontSize: '0.75rem' }}>{h.mode || 'sprint'}</td>
                     <td><strong>{h.wpm}</strong></td>
                     <td>{h.accuracy}%</td>
-                    <td>{h.words}</td>
                   </tr>
                 ))}
               </tbody>

@@ -6,11 +6,11 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(sound.isEnabled());
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(sound.getUserSetting());
   const [soundProfile, setSoundProfile] = useState<SoundProfile>(sound.getProfile());
   const [soundVolume, setSoundVolume] = useState<number>(sound.getVolume());
-  const [themeDark, setThemeDark] = useState<boolean>(() => {
-    return document.documentElement.getAttribute('data-theme') === 'dark';
+  const [currentTheme, setCurrentTheme] = useState<string>(() => {
+    return document.documentElement.getAttribute('data-theme') || 'light';
   });
 
   const handleSoundToggle = () => {
@@ -34,27 +34,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     sound.setVolume(val);
   };
 
-  const handleThemeToggle = () => {
-    const next = !themeDark;
-    setThemeDark(next);
-    try {
-      if (next) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        localStorage.setItem('typerush_theme', 'dark');
-      } else {
-        document.documentElement.removeAttribute('data-theme');
-        localStorage.setItem('typerush_theme', 'light');
-      }
-    } catch {
-      // ignore
-    }
-  };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onClose} role="presentation">
+      <div
+        className="modal-content"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+      >
         <div className="modal-header">
-          <h2 className="modal-title">SETTINGS</h2>
+          <h2 id="settings-title" className="modal-title">SETTINGS</h2>
           <button
             type="button"
             className="modal-close-btn"
@@ -141,22 +132,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           </>
         )}
 
-        {/* Theme Toggle */}
-        <div className="setting-row">
+        {/* Theme Selector */}
+        <div className="setting-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.6rem' }}>
           <div>
-            <div className="setting-label">DARK THEME</div>
-            <div className="setting-desc">Vintage monochrome dark room mode</div>
+            <div className="setting-label">VISUAL THEME</div>
+            <div className="setting-desc">Vintage paper, darkroom, or retro terminal</div>
           </div>
-          <label className="retro-switch" aria-label="Toggle dark theme">
-            <input
-              type="checkbox"
-              checked={themeDark}
-              onChange={handleThemeToggle}
-            />
-            <div className="retro-switch-box">
-              <div className="retro-switch-nob" />
-            </div>
-          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
+            {[
+              { id: 'light', label: 'PAPER' },
+              { id: 'dark', label: 'DARKROOM' },
+              { id: 'terminal', label: 'TERMINAL' },
+              { id: 'brass', label: 'BRASS' },
+            ].map((theme) => {
+              const isSelected = currentTheme === theme.id || (theme.id === 'light' && currentTheme === 'light');
+
+              return (
+                <button
+                  key={theme.id}
+                  type="button"
+                  onClick={() => {
+                    document.documentElement.setAttribute('data-theme', theme.id);
+                    try {
+                      localStorage.setItem('typerush_theme', theme.id);
+                    } catch {}
+                    setCurrentTheme(theme.id);
+                  }}
+
+                  className={`btn-secondary ${isSelected ? 'btn-active' : ''}`}
+                  style={{
+                    padding: '0.35rem 0.75rem',
+                    fontSize: '0.72rem',
+                    backgroundColor: isSelected ? 'var(--ink-primary)' : 'transparent',
+                    color: isSelected ? 'var(--bg-primary)' : 'var(--ink-primary)',
+                  }}
+                >
+                  {theme.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div style={{ marginTop: '2rem', textAlign: 'center' }}>

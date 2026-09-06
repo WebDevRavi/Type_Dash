@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { sound } from '../game/sound';
 
 interface CountdownScreenProps {
@@ -6,46 +6,68 @@ interface CountdownScreenProps {
 }
 
 export const CountdownScreen: React.FC<CountdownScreenProps> = ({ onCountdownComplete }) => {
-  const [step, setStep] = useState<number>(3);
-  const [isGo, setIsGo] = useState<boolean>(false);
+  const [displayValue, setDisplayValue] = useState<'3' | '2' | '1' | 'GO!'>('3');
+  const lastStepRef = useRef<string>('');
+  const completedRef = useRef<boolean>(false);
 
   useEffect(() => {
-    // Play initial sound
-    sound.playCountdownTick(false);
+    let startMs = performance.now();
+    let hiddenAt: number | null = null;
+    let totalPausedMs = 0;
 
-    const timer3 = setTimeout(() => {
-      setStep(2);
-      sound.playCountdownTick(false);
-    }, 1000);
+    const triggerStep = (step: '3' | '2' | '1' | 'GO!') => {
+      if (lastStepRef.current === step) return;
+      lastStepRef.current = step;
+      setDisplayValue(step);
+      sound.playCountdownTick(step === 'GO!');
+    };
 
-    const timer2 = setTimeout(() => {
-      setStep(1);
-      sound.playCountdownTick(false);
-    }, 2000);
+    triggerStep('3');
 
-    const timer1 = setTimeout(() => {
-      setIsGo(true);
-      sound.playCountdownTick(true);
-    }, 3000);
+    const checkInterval = setInterval(() => {
+      if (completedRef.current) return;
+      if (document.visibilityState === 'hidden') return;
 
-    const timerGo = setTimeout(() => {
-      onCountdownComplete();
-    }, 3600);
+      const elapsed = performance.now() - startMs - totalPausedMs;
+
+      if (elapsed >= 3400) {
+        completedRef.current = true;
+        clearInterval(checkInterval);
+        onCountdownComplete();
+      } else if (elapsed >= 2600) {
+        triggerStep('GO!');
+      } else if (elapsed >= 1800) {
+        triggerStep('1');
+      } else if (elapsed >= 900) {
+        triggerStep('2');
+      }
+    }, 50);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = performance.now();
+      } else if (document.visibilityState === 'visible') {
+        if (hiddenAt !== null) {
+          totalPausedMs += performance.now() - hiddenAt;
+          hiddenAt = null;
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
-      clearTimeout(timer3);
-      clearTimeout(timer2);
-      clearTimeout(timer1);
-      clearTimeout(timerGo);
+      clearInterval(checkInterval);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [onCountdownComplete]);
 
   return (
-    <div className="countdown-overlay">
+    <div className="countdown-overlay" aria-live="assertive">
       <div className="countdown-content">
-        {!isGo ? (
-          <div key={step} className="countdown-number">
-            {step}
+        {displayValue !== 'GO!' ? (
+          <div key={displayValue} className="countdown-number">
+            {displayValue}
           </div>
         ) : (
           <div className="countdown-go">GO!</div>
@@ -55,3 +77,4 @@ export const CountdownScreen: React.FC<CountdownScreenProps> = ({ onCountdownCom
     </div>
   );
 };
+

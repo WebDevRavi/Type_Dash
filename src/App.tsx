@@ -6,6 +6,9 @@ import { ResultsScreen } from './components/ResultsScreen';
 import { StatsModal } from './components/StatsModal';
 import { SettingsModal } from './components/SettingsModal';
 import { loadUserStats, saveGameResult, UserStatsStorage } from './game/storage';
+import { recordDailyChallengeCompletion } from './game/dailyChallenge';
+import { crazyGames } from './game/crazyGames';
+import { GameMode } from './game/gameConfig';
 
 type GameState = 'HOME' | 'COUNTDOWN' | 'PLAYING' | 'RESULTS';
 
@@ -15,10 +18,13 @@ interface LastResult {
   accuracy: number;
   words: number;
   isNewPersonalBest: boolean;
+  mode: GameMode;
+  maxCombo: number;
 }
 
 export const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>('HOME');
+  const [selectedMode, setSelectedMode] = useState<GameMode>('sprint');
   const [userStats, setUserStats] = useState<UserStatsStorage>(() => loadUserStats());
   const [lastResult, setLastResult] = useState<LastResult>({
     score: 0,
@@ -26,84 +32,123 @@ export const App: React.FC = () => {
     accuracy: 100,
     words: 0,
     isNewPersonalBest: false,
+    mode: 'sprint',
+    maxCombo: 0,
   });
 
   const [isStatsOpen, setIsStatsOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
-  // Start game flow
-  const handleStart = useCallback(() => {
-    setIsStatsOpen(false);
-    setIsSettingsOpen(false);
-    setGameState('COUNTDOWN');
-  }, []);
-
-  // Countdown finished -> Start playing
-  const handleCountdownComplete = useCallback(() => {
-    setGameState('PLAYING');
-  }, []);
-
-  const handlePlayAgain = useCallback(() => {
-    setGameState('COUNTDOWN');
-  }, []);
-
-  const handleHome = useCallback(() => {
-    setGameState('HOME');
-  }, []);
-
-  // Shared exit function: leaves an active gameplay session cleanly and
-  // returns to the home screen. Used by BOTH the on-screen ESCAPE button
-  // and the physical Escape key so there is a single source of truth.
-  const exitGame = useCallback(() => {
-    setGameState('HOME');
-  }, []);
-
-  // Game over -> Save results and show results screen
-  const handleGameOver = useCallback((results: {
-    score: number;
-    wpm: number;
-    accuracy: number;
-    words: number;
-    correctChars: number;
-    incorrectChars: number;
-    skippedWords: number;
-  }) => {
-    const { isNewPersonalBest, updatedStats } = saveGameResult(
-      results.score,
-      results.wpm,
-      results.accuracy,
-      results.words
-    );
-
-    setUserStats(updatedStats);
-    setLastResult({
-      score: results.score,
-      wpm: results.wpm,
-      accuracy: results.accuracy,
-      words: results.words,
-      isNewPersonalBest,
-    });
-
-    setGameState('RESULTS');
-  }, []);
-
-  // Reload user stats and theme from storage on mount
+  // Initialize CrazyGames SDK lifecycle asynchronously on mount
   useEffect(() => {
+    crazyGames.loadingStart();
+    crazyGames
+      .init()
+      .then(() => {
+        crazyGames.loadingStop();
+      })
+      .catch(() => {
+        crazyGames.loadingStop();
+      });
+
+
     setUserStats(loadUserStats());
     try {
       const savedTheme = localStorage.getItem('typerush_theme');
-      if (savedTheme === 'dark') {
-        document.documentElement.setAttribute('data-theme', 'dark');
+      if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
       }
     } catch {
       // ignore
     }
   }, []);
 
-  // Global keyboard shortcuts (ESC, Enter/Space navigation)
+  // Start game flow
+  const handleStart = useCallback((mode: GameMode = selectedMode) => {
+    setSelectedMode(mode);
+    setIsStatsOpen(false);
+    setIsSettingsOpen(false);
+    setGameState('COUNTDOWN');
+  }, [selectedMode]);
+
+  // Countdown finished -> Start playing (CrazyGames gameplayStart)
+  const handleCountdownComplete = useCallback(() => {
+    setGameState('PLAYING');
+    crazyGames.gameplayStart();
+  }, []);
+
+  // Play again -> Safe midgame ad opportunity at natural round break
+  const handlePlayAgain = useCallback(() => {
+    crazyGames.requestMidgameAd({
+      onAdFinished: () => {
+        setGameState('COUNTDOWN');
+      },
+    });
+  }, []);
+
+  const handleHome = useCallback(() => {
+    setGameState('HOME');
+  }, []);
+
+  // Shared exit function: leaves active gameplay cleanly
+  const exitGame = useCallback(() => {
+    crazyGames.gameplayStop();
+    setGameState('HOME');
+  }, []);
+
+  // Game over -> Stop gameplay, save results, celebrate if PB, show results screen
+  const handleGameOver = useCallback(
+    (results: {
+      score: number;
+      wpm: number;
+      accuracy: number;
+      words: number;
+      correctChars: number;
+      incorrectChars: number;
+      skippedWords: number;
+      maxCombo: number;
+      mode: GameMode;
+    }) => {
+      crazyGames.gameplayStop();
+
+      const { isNewPersonalBest, updatedStats } = saveGameResult(
+        results.score,
+        results.wpm,
+        results.accuracy,
+        results.words,
+        results.mode,
+        results.maxCombo
+      );
+
+      if (isNewPersonalBest) {
+        crazyGames.happytime();
+      }
+
+      // Record daily streak progress on valid gameplay
+      if (results.words > 0 && results.wpm > 0) {
+        recordDailyChallengeCompletion();
+      }
+
+      setUserStats(updatedStats);
+      setLastResult({
+        score: results.score,
+        wpm: results.wpm,
+        accuracy: results.accuracy,
+        words: results.words,
+        isNewPersonalBest,
+        mode: results.mode,
+        maxCombo: results.maxCombo,
+      });
+
+      setGameState('RESULTS');
+    },
+    []
+  );
+
+  // Global keyboard shortcuts (Modals, Space/Enter navigation)
+  // NOTE: Escape during active PLAYING is NOT intercepted to allow CrazyGames fullscreen exit.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // If modal is open, ESC closes it
       if (e.key === 'Escape') {
         if (isStatsOpen) {
           setIsStatsOpen(false);
@@ -117,25 +162,26 @@ export const App: React.FC = () => {
           setGameState('HOME');
           return;
         }
-        // Active gameplay: exit via the same shared function the
-        // on-screen ESCAPE button uses. No skip/penalty side effects.
-        if (gameState === 'PLAYING') {
-          exitGame();
-          return;
-        }
+        // When actively playing, physical Escape exits fullscreen natively
       }
 
-      // Quick start from Home with Enter or Space (if modals closed)
+      // Guard against held-down repeating keys and browser modifier combinations
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const activeTag = (document.activeElement?.tagName || '').toUpperCase();
+      const isInteractiveFocused = activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'A' || activeTag === 'BUTTON';
+
+      // Quick start from Home with Enter or Space (if modals closed and not focused on interactive controls)
       if (gameState === 'HOME' && !isStatsOpen && !isSettingsOpen) {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if ((e.key === 'Enter' || e.key === ' ') && !isInteractiveFocused) {
           e.preventDefault();
-          handleStart();
+          handleStart(selectedMode);
         }
       }
 
-      // Quick play again from Results
+      // Quick play again from Results with Enter or Space
       if (gameState === 'RESULTS') {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if ((e.key === 'Enter' || e.key === ' ') && !isInteractiveFocused) {
           e.preventDefault();
           handlePlayAgain();
         }
@@ -144,14 +190,16 @@ export const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isStatsOpen, isSettingsOpen, gameState, handleStart, handlePlayAgain, exitGame]);
+  }, [isStatsOpen, isSettingsOpen, gameState, handleStart, handlePlayAgain, selectedMode]);
 
   return (
     <div className="typerush-app">
       {gameState === 'HOME' && (
         <HomeScreen
           onStart={handleStart}
-          bestWpm={userStats.bestWpm}
+          bestWpm={userStats.modeBests[selectedMode] || userStats.bestWpm}
+          selectedMode={selectedMode}
+          onSelectMode={setSelectedMode}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenStats={() => setIsStatsOpen(true)}
         />
@@ -162,7 +210,11 @@ export const App: React.FC = () => {
       )}
 
       {gameState === 'PLAYING' && (
-        <GameScreen onGameOver={handleGameOver} onExit={exitGame} />
+        <GameScreen
+          mode={selectedMode}
+          onGameOver={handleGameOver}
+          onExit={exitGame}
+        />
       )}
 
       {gameState === 'RESULTS' && (
@@ -171,8 +223,10 @@ export const App: React.FC = () => {
           accuracy={lastResult.accuracy}
           words={lastResult.words}
           score={lastResult.score}
-          bestWpm={userStats.bestWpm}
+          bestWpm={userStats.modeBests[lastResult.mode] || userStats.bestWpm}
           isNewPersonalBest={lastResult.isNewPersonalBest}
+          mode={lastResult.mode}
+          maxCombo={lastResult.maxCombo}
           onPlayAgain={handlePlayAgain}
           onHome={handleHome}
         />
@@ -191,3 +245,4 @@ export const App: React.FC = () => {
 };
 
 export default App;
+

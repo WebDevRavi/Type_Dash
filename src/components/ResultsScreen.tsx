@@ -1,5 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
+import { GameMode, GAME_MODES } from '../game/gameConfig';
+import { getPlayerRank } from '../game/storage';
+import { loadDailyChallengeState } from '../game/dailyChallenge';
 
 interface ResultsScreenProps {
   wpm: number;
@@ -8,6 +11,8 @@ interface ResultsScreenProps {
   score: number;
   bestWpm: number;
   isNewPersonalBest: boolean;
+  mode?: GameMode;
+  maxCombo?: number;
   onPlayAgain: () => void;
   onHome: () => void;
 }
@@ -19,9 +24,25 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
   score,
   bestWpm,
   isNewPersonalBest,
+  mode = 'sprint',
+  maxCombo = 0,
   onPlayAgain,
   onHome,
 }) => {
+  const rank = getPlayerRank(wpm);
+  const [dailyStreak, setDailyStreak] = useState<number>(0);
+  const [dailyCompletedNow, setDailyCompletedNow] = useState<boolean>(false);
+
+  useEffect(() => {
+    const state = loadDailyChallengeState();
+    if (state.streak > 0) {
+      setDailyStreak(state.streak);
+      if (state.isCompletedToday) {
+        setDailyCompletedNow(true);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (isNewPersonalBest) {
       try {
@@ -42,7 +63,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
     <div className="app-container">
       <main className="results-screen">
         <h1 className="results-heading">TIME'S UP!</h1>
-        <p className="results-subheading">YOUR SPEED</p>
+        <p className="results-subheading">{GAME_MODES[mode]?.name || 'SPRINT'} &middot; {rank.title}</p>
 
         <div className="results-hero-wpm">{wpm}</div>
         <div className="results-hero-unit">WPM</div>
@@ -50,6 +71,18 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
         {isNewPersonalBest && (
           <div className="personal-best-badge">
             ★ NEW PERSONAL BEST ★
+          </div>
+        )}
+
+        {dailyCompletedNow && dailyStreak > 0 && (
+          <div className="daily-streak-badge" style={{ marginTop: '0.2rem', marginBottom: '0.5rem' }}>
+            🔥 {dailyStreak} DAY STREAK!
+          </div>
+        )}
+
+        {maxCombo >= 3 && (
+          <div className="max-combo-callout">
+            🔥 MAX COMBO: &times;{maxCombo}
           </div>
         )}
 
@@ -75,12 +108,15 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
           </div>
         </div>
 
+
+
         <div className="results-actions">
           <button
             type="button"
             onClick={onPlayAgain}
             className="btn-primary"
             autoFocus
+            aria-label="Play another round"
           >
             PLAY AGAIN
           </button>
@@ -88,11 +124,17 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
             type="button"
             onClick={onHome}
             className="btn-secondary"
+            aria-label="Return to menu"
           >
             HOME
           </button>
+        </div>
+
+        <div className="results-keyboard-hint">
+          [ENTER] or [SPACE] to Play Again
         </div>
       </main>
     </div>
   );
 };
+

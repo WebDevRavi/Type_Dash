@@ -1,9 +1,14 @@
 import React from 'react';
 import { TypeRushLogo } from './TypeRushLogo';
+import { GameMode, GAME_MODES } from '../game/gameConfig';
+import { getPlayerRank } from '../game/storage';
+import { loadDailyChallengeState } from '../game/dailyChallenge';
 
 interface HomeScreenProps {
-  onStart: () => void;
+  onStart: (mode: GameMode) => void;
   bestWpm: number;
+  selectedMode: GameMode;
+  onSelectMode: (mode: GameMode) => void;
   onOpenSettings: () => void;
   onOpenStats: () => void;
 }
@@ -11,9 +16,14 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onStart,
   bestWpm,
+  selectedMode,
+  onSelectMode,
   onOpenSettings,
   onOpenStats,
 }) => {
+  const rank = getPlayerRank(bestWpm);
+  const dailyState = loadDailyChallengeState();
+
   return (
     <div className="app-container">
       <main className="screen-center">
@@ -28,31 +38,59 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
 
           <p className="home-challenge-desc">
-            How many words can you type in 60 seconds?
+            {GAME_MODES[selectedMode].description}
           </p>
+        </div>
+
+        {/* Game Mode Selector Pills */}
+        <div className="mode-selector-group" role="tablist" aria-label="Game Modes">
+          {(Object.keys(GAME_MODES) as GameMode[]).map((modeKey) => {
+            const isSelected = selectedMode === modeKey;
+            return (
+              <button
+                key={modeKey}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                onClick={() => onSelectMode(modeKey)}
+                className={`mode-pill-btn ${isSelected ? 'active' : ''}`}
+              >
+                {GAME_MODES[modeKey].name}
+              </button>
+            );
+          })}
         </div>
 
         {/* Primary CTA */}
         <button
           type="button"
-          onClick={onStart}
+          onClick={() => onStart(selectedMode)}
           className="btn-primary"
           autoFocus
-          aria-label="Start TypeRush challenge"
+          aria-label={`Start ${GAME_MODES[selectedMode].name} challenge`}
         >
           START
         </button>
 
-        {/* Best Score Section */}
+        {/* Daily Challenge & Best Score Section */}
         <div className="best-score-section">
+          <div
+            className={`daily-streak-badge ${dailyState.streak > 0 ? 'active-streak' : 'start-streak'}`}
+            title={dailyState.isCompletedToday ? 'Daily session completed today!' : 'Play today to build your streak!'}
+          >
+            {dailyState.streak > 0
+              ? `🔥 ${dailyState.streak} DAY STREAK ${dailyState.isCompletedToday ? '✓' : ''}`
+              : '⚡ START YOUR DAILY STREAK TODAY'}
+          </div>
+
           <div className="best-score-divider">
             <div className="best-score-dots" />
-            <span className="best-score-heading">BEST SCORE</span>
+            <span className="best-score-heading">BEST SPEED</span>
             <div className="best-score-dots" />
           </div>
 
           <div className="best-score-number">{bestWpm}</div>
-          <div className="best-score-unit">WPM</div>
+          <div className="best-score-unit">WPM &middot; {rank.title}</div>
         </div>
 
         {/* Creator Social Credits */}
@@ -112,3 +150,4 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     </div>
   );
 };
+

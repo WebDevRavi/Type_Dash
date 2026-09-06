@@ -35,3 +35,34 @@
   --success-ink: #4ade80;
   --upcoming-ink: #38bdf8;
 }
+
+[data-theme='terminal'] {
+  --bg-primary: #0a110a;
+  --bg-secondary: #101d10;
+  --ink-primary: #4ade80;
+  --ink-secondary: #22c55e;
+  --ink-muted: #166534;
+  --border-dark: #4ade80;
+  --border-light: #15803d;
+  --border-dotted: #166534;
+  --error-ink: #ef4444;
+  --error-bg: #450a0a;
+  --success-ink: #86efac;
+  --upcoming-ink: #a7f3d0;
+}
+
+[data-theme='brass'] {
+  --bg-primary: #1c1815;
+  --bg-secondary: #26211c;
+  --ink-primary: #f5d061;
+  --ink-secondary: #d4af37;
+  --ink-muted: #8b7330;
+  --border-dark: #f5d061;
+  --border-light: #614e20;
+  --border-dotted: #4a3b18;
+  --error-ink: #f87171;
+  --error-bg: #450a0a;
+  --success-ink: #4ade80;
+  --upcoming-ink: #fde047;
+}
+
